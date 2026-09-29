@@ -6,13 +6,46 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-java@v3
-        with: { java-version: '17', distribution: 'temurin' }
-      - uses: android-actions/setup-android@v3
-      - name: Build APK
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Create Android Project
         run: |
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          gradle assembleDebug --stacktrace
-      - name: Upload to Release
+          rm -rf app build.gradle settings.gradle gradle.properties
+          mkdir -p app/src/main/java/com/datahk app/src/main/assets
+          echo "include ':app'" > settings.gradle
+          echo "org.gradle.jvmargs=-Xmx2g
+          android.useAndroidX=true" > gradle.properties
+          cat > build.gradle << 'G'
+          buildscript{repositories{google();mavenCentral()}dependencies{classpath 'com.android.tools.build:gradle:7.4.2'}}
+          allprojects{repositories{google();mavenCentral()}}
+          G
+          cat > app/build.gradle << 'G'
+          plugins{id 'com.android.application'}
+          android{compileSdk 33; namespace 'com.datahk.prediksi'
+          defaultConfig{applicationId "com.datahk.prediksi"; minSdk 21; targetSdk 33; versionCode 1; versionName "10.9"}
+          buildTypes{release{minifyEnabled false}}}
+          dependencies{implementation 'androidx.appcompat:appcompat:1.6.1'}
+          G
+          cat > app/src/main/AndroidManifest.xml << 'M'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+          <uses-permission android:name="android.permission.INTERNET"/>
+          <application android:label="DATA HK V10.9" android:theme="@android:style/Theme.NoTitleBar">
+          <activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
+          </application></manifest>
+          M
+          cat > app/src/main/java/com/datahk/MainActivity.java << 'J'
+          package com.datahk; import android.app.Activity; import android.os.Bundle; import android.webkit.WebView; import android.webkit.WebViewClient;
+          public class MainActivity extends Activity{protected void onCreate(Bundle b){super.onCreate(b);WebView w=new WebView(this);w.getSettings().setJavaScriptEnabled(true);w.setWebViewClient(new WebViewClient());w.loadUrl("file:///android_asset/index.html");setContentView(w);}}
+          J
+          echo "<html><body style='background:#111;color:#0f0;display:flex;justify-content:center;align-items:center;height:100vh'><h1>DATA HK V10.9 BUILD OK</h1></body></html>" > app/src/main/assets/index.html
+
+      - name: Build APK
+        run: gradle assembleDebug --stacktrace
+
+      - name: Release APK
         uses: softprops/action-gh-release@v1
         with:
           files: app/build/outputs/apk/debug/app-debug.apk
