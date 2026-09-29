@@ -9,42 +9,61 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.7'
 
       - name: Create project
         run: |
-          rm -rf app build.gradle settings.gradle gradle.properties gradle gradlew gradlew.bat
-          mkdir -p app/src/main/java/com/datahk app/src/main/assets app/src/main/res/values gradle/wrapper
-
+          rm -rf app build.gradle settings.gradle gradle.properties gradle gradlew*
+          mkdir -p app/src/main/java/com/datahk app/src/main/assets app/src/main/res/values
           echo "include ':app'" > settings.gradle
           echo "org.gradle.jvmargs=-Xmx2g" > gradle.properties
           echo "android.useAndroidX=true" >> gradle.properties
-
-          # Download gradle wrapper jar resmi
-          curl -L -o gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/v8.7.0/gradle/wrapper/gradle-wrapper.jar
-          curl -L -o gradle/wrapper/gradle-wrapper.properties https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradle/wrapper/gradle-wrapper.properties
-          curl -L -o gradlew https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradlew
-          curl -L -o gradlew.bat https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradlew.bat
-          chmod +x gradlew
-
-          printf "buildscript {\n repositories { google(); mavenCentral() }\n dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }\n}\nallprojects { repositories { google(); mavenCentral() } }\n" > build.gradle
-
-          printf "plugins { id 'com.android.application' }\nandroid {\n compileSdk 34\n namespace 'com.datahk.prediksi'\n defaultConfig { applicationId \"com.datahk.prediksi\"; minSdk 21; targetSdk 34; versionCode 11; versionName \"10.9\" }\n compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }\n}\ndependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }\n" > app/build.gradle
-
-          printf "<?xml version=\"1.0\" encoding=\"utf-8\"?><manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"><uses-permission android:name=\"android.permission.INTERNET\"/><application android:label=\"DATA HK V10.9\" android:theme=\"@android:style/Theme.Black.NoTitleBar\"><activity android:name=\".MainActivity\" android:exported=\"true\"><intent-filter><action android:name=\"android.intent.action.MAIN\"/><category android:name=\"android.intent.category.LAUNCHER\"/></intent-filter></activity></application></manifest>" > app/src/main/AndroidManifest.xml
-
-          printf "package com.datahk;\nimport android.app.Activity;import android.os.Bundle;import android.webkit.WebView;import android.webkit.WebViewClient;\npublic class MainActivity extends Activity{protected void onCreate(Bundle b){super.onCreate(b);WebView w=new WebView(this);w.getSettings().setJavaScriptEnabled(true);w.setWebViewClient(new WebViewClient());w.loadUrl(\"file:///android_asset/index.html\");setContentView(w);}}\n" > app/src/main/java/com/datahk/MainActivity.java
-
-          printf "<resources><string name=\"app_name\">DATA HK V10.9</string></resources>" > app/src/main/res/values/strings.xml
-          printf "<html><body style='background:#000;color:#0f0;display:flex;justify-content:center;align-items:center;height:100vh'><h1>DATA HK V10.9 BUILD v11 OK</h1></body></html>" > app/src/main/assets/index.html
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          ls -lh gradle/wrapper/
 
-      - name: Build APK
-        run:./gradlew assembleDebug --stacktrace
+          cat > build.gradle << 'G'
+          buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
+          }
+          allprojects { repositories { google(); mavenCentral() } }
+          G
 
-      - name: Upload APK
+          cat > app/build.gradle << 'G'
+          plugins { id 'com.android.application' }
+          android {
+            compileSdk 34
+            namespace 'com.datahk.prediksi'
+            defaultConfig { applicationId "com.datahk.prediksi"; minSdk 21; targetSdk 34; versionCode 12; versionName "10.9" }
+            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+          }
+          dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
+          G
+
+          cat > app/src/main/AndroidManifest.xml << 'M'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <application android:label="DATA HK V10.9" android:theme="@android:style/Theme.Black.NoTitleBar">
+              <activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
+            </application>
+          </manifest>
+          M
+
+          cat > app/src/main/java/com/datahk/MainActivity.java << 'J'
+          package com.datahk; import android.app.Activity; import android.os.Bundle; import android.webkit.WebView; import android.webkit.WebViewClient;
+          public class MainActivity extends Activity{protected void onCreate(Bundle b){super.onCreate(b);WebView w=new WebView(this);w.getSettings().setJavaScriptEnabled(true);w.setWebViewClient(new WebViewClient());w.loadUrl("file:///android_asset/index.html");setContentView(w);}}
+          J
+
+          echo '<resources><string name="app_name">DATA HK V10.9</string></resources>' > app/src/main/res/values/strings.xml
+          echo "<html><body style='background:#000;color:#0f0;display:flex;justify-content:center;align-items:center;height:100vh'><h1>DATA HK V10.9 v12 OK</h1></body></html>" > app/src/main/assets/index.html
+
+      - name: Build APK - NO WRAPPER
+        run: gradle assembleDebug --stacktrace
+
+      - uses: actions/upload-artifact@v4
         if: success()
-        uses: actions/upload-artifact@v4
         with:
-          name: apk-data-hk-v11
+          name: apk-data-hk-v12
           path: app/build/outputs/apk/debug/*.apk
